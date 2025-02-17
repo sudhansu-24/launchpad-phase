@@ -53,7 +53,7 @@ contract LaunchPadNFT is ERC721URIStorage, Ownable {
         emit NFTPurchased(msg.sender, tokenId, price);
     }
 
-    // ✅ Function to get all listed NFTs
+    // Function to get all listed NFTs
     function getAllListedNFTs() public view returns (uint256[] memory, uint256[] memory) {
         uint256 totalTokens = _tokenIdCounter;
         uint256 listedCount = 0;
