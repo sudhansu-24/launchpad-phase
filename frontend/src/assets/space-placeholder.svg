@@ -1,0 +1,8 @@
+<svg width="280" height="280" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="280" height="280" fill="#1a1d26"/>
+    <circle cx="140" cy="140" r="60" fill="#2081e2" opacity="0.5"/>
+    <circle cx="140" cy="140" r="40" fill="#ffffff" opacity="0.3"/>
+    <text x="140" y="150" text-anchor="middle" fill="white" font-family="Inter" font-size="14">
+        Space NFT
+    </text>
+</svg> 

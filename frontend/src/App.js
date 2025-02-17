@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ethers } from "ethers";
-import MintNFT from "./MintNFT";
 import { getEthereumContract, getListedNFTs, buyNFT, delistNFT, listNFT, getTransactionHistory } from "./web3";
 import "./App.css";
+import ethIcon from './assets/eth-icon.svg';
+import launchpadLogo from './assets/launchpad-logo.svg';
 
 function App() {
     const [price, setPrice] = useState("");
@@ -12,12 +13,59 @@ function App() {
     const [listedNFTs, setListedNFTs] = useState([]);
     const [transactions, setTransactions] = useState([]);
     const [ipfsUrl, setIpfsUrl] = useState("");
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [fetchTokenId, setFetchTokenId] = useState("");
+    const [theme, setTheme] = useState('dark');
+
+    // Define these callbacks first
+    const fetchListedNFTs = useCallback(async () => {
+        try {
+            const nfts = await getListedNFTs();
+            setListedNFTs(nfts);
+        } catch (error) {
+            console.error("Error fetching listed NFTs:", error);
+        }
+    }, []);
+
+    const fetchTransactionHistory = useCallback(async () => {
+        try {
+            const history = await getTransactionHistory();
+            setTransactions(history.reverse());
+        } catch (error) {
+            console.error("Error fetching transaction history:", error);
+        }
+    }, []);
+
+    // Then use them in fetchInitialData
+    const fetchInitialData = useCallback(async () => {
+        try {
+            await fetchListedNFTs();
+            await fetchTransactionHistory();
+        } catch (error) {
+            console.error("Error fetching initial data:", error);
+        }
+    }, [fetchListedNFTs, fetchTransactionHistory]);
 
     // Connect MetaMask
     const connectWallet = async () => {
-        if (!window.ethereum) return alert("Please install MetaMask.");
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-        setAccount(accounts[0]);
+        if (!window.ethereum) {
+            alert("Please install MetaMask.");
+            return;
+        }
+        
+        if (isConnecting) return;
+
+        try {
+            setIsConnecting(true);
+            const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+            setAccount(accounts[0]);
+            await fetchInitialData();
+        } catch (error) {
+            console.error("Connection error:", error);
+            alert("Failed to connect wallet.");
+        } finally {
+            setIsConnecting(false);
+        }
     };
 
     // Mint NFT
@@ -36,19 +84,33 @@ function App() {
 
     // Fetch NFT Metadata
     const fetchNFT = async () => {
-        if (!tokenId) return alert("Please enter a Token ID.");
+        if (!fetchTokenId) {
+            alert("Please enter a Token ID");
+            return;
+        }
+
         try {
             const contract = await getEthereumContract();
-            const metadataURI = await contract.tokenURI(tokenId);
-            const ipfsGateway = "https://ipfs.io/ipfs/";
-            const metadataURL = metadataURI.replace("ipfs://", ipfsGateway);
-            const response = await fetch(metadataURL);
+            const metadataURI = await contract.tokenURI(fetchTokenId);
+            
+            // Convert IPFS URI to HTTP URL if needed
+            const url = metadataURI.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch metadata');
+            
             const metadata = await response.json();
-            metadata.image = metadata.image.replace("ipfs://", ipfsGateway);
+            
+            // Convert IPFS image URL if needed
+            if (metadata.image && metadata.image.startsWith('ipfs://')) {
+                metadata.image = metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            }
+            
             setNftData(metadata);
         } catch (error) {
             console.error("Error fetching NFT:", error);
-            alert("NFT not found or error fetching metadata.");
+            alert("Failed to fetch NFT. Make sure the Token ID exists.");
+            setNftData(null);
         }
     };
 
@@ -79,128 +141,251 @@ function App() {
         }
     };
 
-    // Fetch Listed NFTs
-    const fetchListedNFTs = async () => {
-        try {
-            const nfts = await getListedNFTs();
-            setListedNFTs(nfts);
-        } catch (error) {
-            console.error("Error fetching listed NFTs:", error);
-        }
-    };
-
-    // Fetch Transaction History
-    const fetchTransactionHistory = async () => {
-        try {
-            const history = await getTransactionHistory();
-            setTransactions(history.reverse());  // ✅ Reverse so newest transactions show first
-        } catch (error) {
-            console.error("Error fetching transaction history:", error);
-        }
-    };
-
-
-
-
     const handleBuyNFT = async (tokenId, price) => {
-        try {
-            await buyNFT(tokenId, price);
-            alert(`NFT ${tokenId} purchased successfully!`);
+        if (!account) {
+            alert("Please connect your wallet first");
+            return;
+        }
 
-            fetchListedNFTs();  // ✅ Remove the bought NFT from listings
-            fetchTransactionHistory();  // ✅ Update the transaction history
+        try {
+            const success = await buyNFT(tokenId, price);
+            if (success) {
+                alert(`Successfully purchased NFT #${tokenId}!`);
+                // Refresh the listings and transaction history
+                await fetchListedNFTs();
+                await fetchTransactionHistory();
+            }
         } catch (error) {
-            console.error("Buying error:", error);
-            alert("Failed to buy NFT.");
+            console.error("Error buying NFT:", error);
+            alert(error.message || "Failed to buy NFT. Please try again.");
         }
     };
 
+    // Add disconnectWallet function
+    const disconnectWallet = () => {
+        setAccount("");
+    };
 
-    // Fetch listed NFTs and transactions on page load
+    // Update useEffect to only fetch data when connected
     useEffect(() => {
-        fetchListedNFTs();
-        fetchTransactionHistory();
-    }, []);
+        const checkConnection = async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+                    if (accounts.length > 0) {
+                        setAccount(accounts[0]);
+                        await fetchInitialData();
+                    }
+                } catch (error) {
+                    console.error("Error checking connection:", error);
+                }
+            }
+        };
+
+        checkConnection();
+
+        // Listen for account changes
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length > 0) {
+                    setAccount(accounts[0]);
+                    fetchInitialData();
+                } else {
+                    setAccount('');
+                }
+            });
+        }
+
+        return () => {
+            if (window.ethereum) {
+                window.ethereum.removeListener('accountsChanged', () => {});
+            }
+        };
+    }, [fetchInitialData]);
+
+    // Add theme toggle function
+    const toggleTheme = () => {
+        const newTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+        document.documentElement.setAttribute('data-theme', newTheme);
+    };
 
     return (
-        <div className="app-container">
+        <div>
+            <div className="space-bg">
+                <div className="stars"></div>
+            </div>
             <header>
-                <h1>LaunchPad NFT Marketplace</h1>
-                {account ? (
-                    <p>Connected: {account}</p>
-                ) : (
-                    <button className="connect-btn" onClick={connectWallet}>Connect MetaMask</button>
-                )}
+                <div className="header-content">
+                    <div className="logo">
+                        <img src={launchpadLogo} alt="LaunchPad" />
+                        <span>LaunchPad</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <button 
+                            className="theme-toggle" 
+                            onClick={toggleTheme}
+                            aria-label="Toggle theme"
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+                        <button 
+                            className="connect-btn"
+                            onClick={account ? disconnectWallet : connectWallet}
+                            disabled={isConnecting}
+                        >
+                            {account ? 
+                                `${account.slice(0, 6)}...${account.slice(-4)}` : 
+                                isConnecting ? 'Connecting...' : 'Connect Wallet'
+                            }
+                        </button>
+                    </div>
+                </div>
             </header>
 
-            <main>
-                <section className="nft-mint">
-                    <h2>Mint NFT</h2>
-                    <input
-                        type="text"
-                        value={ipfsUrl}
-                        onChange={(e) => setIpfsUrl(e.target.value)}
-                        placeholder="Enter IPFS URL"
-                    />
-                    <button onClick={mintNFT}>Mint NFT</button>
+            <div className="app-container">
+                <div className="filters">
+                    <button className="filter-btn active">All</button>
+                    <button className="filter-btn">Art</button>
+                    <button className="filter-btn">Collectibles</button>
+                    <button className="filter-btn">Games</button>
+                </div>
+
+                <section className="mint-section">
+                    <h2>Create New NFT</h2>
+                    <div className="mint-form">
+                        <input
+                            type="text"
+                            className="mint-input"
+                            value={ipfsUrl}
+                            onChange={(e) => setIpfsUrl(e.target.value)}
+                            placeholder="Enter IPFS URL"
+                        />
+                        <div className="button-container">
+                            <button className="buy-btn" onClick={mintNFT}>Mint NFT</button>
+                        </div>
+                    </div>
                 </section>
 
-                <section className="nft-fetch">
-                    <h2>Fetch NFT</h2>
-                    <input type="number" value={tokenId} onChange={(e) => setTokenId(e.target.value)} placeholder="Enter Token ID" />
-                    <button onClick={fetchNFT}>Fetch NFT</button>
+                <section className="mint-section">
+                    <h2>List Your NFT</h2>
+                    <div className="mint-form list-form">
+                        <input
+                            type="text"
+                            className="mint-input"
+                            value={tokenId}
+                            onChange={(e) => setTokenId(e.target.value)}
+                            placeholder="Enter Token ID"
+                        />
+                        <input
+                            type="number"
+                            step="0.01"
+                            className="mint-input"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            placeholder="Enter Price in ETH"
+                        />
+                        <div className="button-container" style={{ gridColumn: "1 / -1" }}>
+                            <button className="list-btn" onClick={handleListNFT}>List for Sale</button>
+                        </div>
+                    </div>
                 </section>
 
-                {nftData && (
-                    <section className="nft-details">
-                        <h2>{nftData.name}</h2>
-                        <p>{nftData.description}</p>
-                        <img src={nftData.image} alt={`NFT ${nftData.name}`} />
-                        {nftData.price && (
-                            <button onClick={() => handleBuyNFT(tokenId, nftData.price)}>Buy for {nftData.price} ETH</button>
-                        )}
-                    </section>
-                )}
+                <section className="mint-section">
+                    <h2>Fetch NFT Details</h2>
+                    <div className="mint-form">
+                        <input
+                            type="text"
+                            className="mint-input"
+                            value={fetchTokenId}
+                            onChange={(e) => setFetchTokenId(e.target.value)}
+                            placeholder="Enter Token ID to fetch"
+                        />
+                        <div className="button-container">
+                            <button className="fetch-btn" onClick={fetchNFT}>Fetch NFT</button>
+                        </div>
+                    </div>
+                    {/* Display fetched NFT details */}
+                    {nftData && (
+                        <div className="fetched-nft">
+                            <h3>NFT #{fetchTokenId}</h3>
+                            <div className="nft-details">
+                                <img src={nftData.image} alt={nftData.name} />
+                                <div className="nft-info">
+                                    <h4>{nftData.name}</h4>
+                                    <p>{nftData.description}</p>
+                                    {nftData.attributes?.map((attr, index) => (
+                                        <div key={index} className="nft-attribute">
+                                            <span>{attr.trait_type}:</span>
+                                            <span>{attr.value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </section>
 
-                <section className="nft-listing">
-                    <h2>List NFT for Sale</h2>
-                    <input type="number" value={tokenId} onChange={(e) => setTokenId(e.target.value)} placeholder="Enter Token ID" />
-                    <input type="text" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Enter Price in ETH" />
-                    <button onClick={handleListNFT}>List NFT</button>
-
+                <section className="marketplace">
+                    <h2>Featured LaunchPad NFTs</h2>
                     <div className="nft-grid">
                         {listedNFTs.map((nft) => (
                             <div key={nft.tokenId} className="nft-card">
-                                <p><strong>Token ID:</strong> {nft.tokenId}</p>
-                                <p><strong>Price:</strong> {nft.price} ETH</p>
-
-                                {/* ✅ Add Buy NFT Button */}
-                                <button onClick={() => handleBuyNFT(nft.tokenId, nft.price)}>Buy NFT</button>
-
-                                {/* ✅ Delist NFT Button */}
-                                <button onClick={() => handleDelistNFT(nft.tokenId)}>Delist NFT</button>
+                                <img 
+                                    src={nft.image || '/assets/space-placeholder.svg'} 
+                                    alt={nft.name}
+                                    onError={(e) => {
+                                        e.target.src = '/assets/space-placeholder.svg';
+                                        e.target.onerror = null;
+                                    }}
+                                />
+                                <div className="nft-info">
+                                    <h3 className="nft-name">{nft.name || `Space NFT #${nft.tokenId}`}</h3>
+                                    <div className="price-container">
+                                        <div className="eth-price">
+                                            <img src={ethIcon} alt="ETH" className="eth-icon" />
+                                            <span>{nft.price} ETH</span>
+                                        </div>
+                                        {account && account.toLowerCase() === nft.owner?.toLowerCase() ? (
+                                            <button className="delist-btn" onClick={() => handleDelistNFT(nft.tokenId)}>
+                                                Delist
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                className="buy-btn"
+                                                onClick={() => {
+                                                    if (!account) {
+                                                        alert("Please connect your wallet first");
+                                                        return;
+                                                    }
+                                                    handleBuyNFT(nft.tokenId, nft.price);
+                                                }}
+                                            >
+                                                Buy Now
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </section>
 
-
-                {/* ✅ Transaction History Section */}
                 <section className="transaction-history">
-                    <h2>Transaction History</h2>
-                    {transactions.length === 0 ? (
-                        <p>No transactions yet.</p>
-                    ) : (
-                        <ul>
-                            {transactions.map((tx, index) => (
-                                <li key={index} className={`tx-${tx.type.toLowerCase()}`}>
-                                    <strong>{tx.type}</strong> - Token ID: {tx.tokenId} | Price: {tx.price || "N/A"} ETH | From: {tx.from}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    <h2>Recent Activity</h2>
+                    {transactions.map((tx, index) => (
+                        <div key={index} className="tx-item">
+                            <div className="tx-info">
+                                <span className="tx-type">{tx.type}</span>
+                                <span className="tx-id">Token #{tx.tokenId}</span>
+                            </div>
+                            <div className="tx-price">
+                                {tx.price && `Ξ ${tx.price} ETH`}
+                            </div>
+                        </div>
+                    ))}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

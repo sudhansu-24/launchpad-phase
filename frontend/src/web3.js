@@ -721,14 +721,17 @@ const ABI = [
 ];
 
 export const getEthereumContract = async () => {
-  if (!window.ethereum) {
-    alert("Please install MetaMask.");
-    return null;
+  if (!window.ethereum) throw new Error("Please install MetaMask");
+  
+  // Check if already connected
+  const accounts = await window.ethereum.request({ method: "eth_accounts" });
+  if (accounts.length === 0) {
+    throw new Error("Please connect your wallet");
   }
 
-  const provider = new BrowserProvider(window.ethereum);
+  const provider = new ethers.BrowserProvider(window.ethereum);
   const signer = await provider.getSigner();
-  return new Contract(CONTRACT_ADDRESS, ABI, signer);
+  return new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
 };
 
 export const getNFTMetadata = async (tokenId) => {
@@ -745,31 +748,79 @@ export const getNFTMetadata = async (tokenId) => {
 };
 
 export const getListedNFTs = async () => {
-  const contract = await getEthereumContract();
-  const [listedTokens, prices] = await contract.getAllListedNFTs();
+    try {
+        const contract = await getEthereumContract();
+        const [listedTokens, prices] = await contract.getAllListedNFTs();
 
-  return listedTokens.map((tokenId, index) => ({
-      tokenId: tokenId.toString(),
-      price: ethers.formatEther(prices[index])
-  }));
+        // Fetch metadata for each listed NFT
+        const nftsWithMetadata = await Promise.all(
+            listedTokens.map(async (tokenId) => {
+                try {
+                    // Get the token URI
+                    const metadataURI = await contract.tokenURI(tokenId);
+                    const url = metadataURI.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                    
+                    // Fetch metadata
+                    const response = await fetch(url);
+                    const metadata = await response.json();
+                    
+                    // Convert IPFS image URL if needed
+                    if (metadata.image && metadata.image.startsWith('ipfs://')) {
+                        metadata.image = metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                    }
+
+                    // Get the owner of the NFT
+                    const owner = await contract.ownerOf(tokenId);
+
+                    return {
+                        tokenId: tokenId.toString(),
+                        price: ethers.formatEther(prices[listedTokens.indexOf(tokenId)]),
+                        image: metadata.image,
+                        name: metadata.name,
+                        description: metadata.description,
+                        owner: owner
+                    };
+                } catch (error) {
+                    console.error(`Error fetching metadata for token ${tokenId}:`, error);
+                    return {
+                        tokenId: tokenId.toString(),
+                        price: ethers.formatEther(prices[listedTokens.indexOf(tokenId)]),
+                        image: 'placeholder-image.png', // Fallback image
+                        name: `NFT #${tokenId}`,
+                        description: 'Metadata unavailable',
+                        owner: null
+                    };
+                }
+            })
+        );
+
+        return nftsWithMetadata;
+    } catch (error) {
+        console.error("Error in getListedNFTs:", error);
+        return [];
+    }
 };
 
 export const buyNFT = async (tokenId, price) => {
-  if (!window.ethereum) {
-      alert("Please install MetaMask.");
-      return;
-  }
-
-  try {
-      const contract = await getEthereumContract();
-      const tx = await contract.buyNFT(tokenId, { value: ethers.parseEther(price) });
-      await tx.wait();
-
-      alert(`NFT ${tokenId} purchased successfully!`);
-  } catch (error) {
-      console.error("Purchase error:", error);
-      alert("Failed to buy NFT.");
-  }
+    try {
+        const contract = await getEthereumContract();
+        const priceInWei = ethers.parseEther(price.toString());
+        
+        console.log(`Buying NFT #${tokenId} for ${price} ETH`);
+        const tx = await contract.buyNFT(tokenId, { value: priceInWei });
+        
+        console.log('Transaction sent:', tx.hash);
+        await tx.wait();
+        console.log('Transaction confirmed');
+        
+        return true;
+    } catch (error) {
+        console.error("Error buying NFT:", error);
+        if (error.message.includes("insufficient funds")) {
+            throw new Error("Insufficient funds to complete the purchase");
+        }
+        throw error;
+    }
 };
 
 export const delistNFT = async (tokenId) => {
@@ -800,38 +851,38 @@ export const listNFT = async (tokenId, price) => {
 
 export const getTransactionHistory = async () => {
   try {
-      const contract = await getEthereumContract();
-      const listedEvents = await contract.queryFilter(contract.filters.NFTListed());
-      const purchasedEvents = await contract.queryFilter(contract.filters.NFTPurchased());
-      const delistedEvents = await contract.queryFilter(contract.filters.NFTDelisted());
+    const contract = await getEthereumContract();
+    const listedEvents = await contract.queryFilter(contract.filters.NFTListed());
+    const purchasedEvents = await contract.queryFilter(contract.filters.NFTPurchased());
+    const delistedEvents = await contract.queryFilter(contract.filters.NFTDelisted());
 
-      const transactions = [
-          ...listedEvents.map(event => ({
-              type: "Listed",
-              tokenId: event.args.tokenId.toString(),
-              price: ethers.formatEther(event.args.price),
-              from: event.args.owner,
-              timestamp: event.blockNumber
-          })),
-          ...purchasedEvents.map(event => ({
-              type: "Purchased",
-              tokenId: event.args.tokenId.toString(),
-              price: ethers.formatEther(event.args.price),
-              from: event.args.buyer,
-              timestamp: event.blockNumber
-          })),
-          ...delistedEvents.map(event => ({
-              type: "Delisted",
-              tokenId: event.args.tokenId.toString(),
-              from: event.args.owner,
-              timestamp: event.blockNumber
-          }))
-      ];
+    const transactions = [
+        ...listedEvents.map(event => ({
+            type: "Listed",
+            tokenId: event.args.tokenId.toString(),
+            price: ethers.formatEther(event.args.price),
+            from: event.args.owner,
+            timestamp: event.blockNumber
+        })),
+        ...purchasedEvents.map(event => ({
+            type: "Purchased",
+            tokenId: event.args.tokenId.toString(),
+            price: ethers.formatEther(event.args.price),
+            from: event.args.buyer,
+            timestamp: event.blockNumber
+        })),
+        ...delistedEvents.map(event => ({
+            type: "Delisted",
+            tokenId: event.args.tokenId.toString(),
+            from: event.args.owner,
+            timestamp: event.blockNumber
+        }))
+    ];
 
-      return transactions.sort((a, b) => b.timestamp - a.timestamp); // ✅ Sort by latest
+    return transactions.sort((a, b) => b.timestamp - a.timestamp); // ✅ Sort by latest
   } catch (error) {
-      console.error("Error fetching transaction history:", error);
-      return [];
+    console.error("Error in getTransactionHistory:", error);
+    return [];
   }
 };
 
