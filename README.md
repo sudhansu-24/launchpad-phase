@@ -80,9 +80,10 @@ This contract handles the NFT minting, listing, buying, and delisting functional
 ---
 
 ## 🎨 UI Screenshots
-![Minting NFT](https://your-image-link.com/minting.png)
-![Marketplace](https://your-image-link.com/marketplace.png)
-![Transaction History](https://your-image-link.com/history.png)
+![Minting NFT](frontend/screenshots/dash.png)
+![Marketplace](frontend/screenshots/ownerside.png)
+![Buyer's View](frontend/screenshots/buyerside.png)
+![Transaction History](frontend/screenshots/transactionhistory.png)
 
 ---
 
