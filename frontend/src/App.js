@@ -4,6 +4,7 @@ import { getEthereumContract, getListedNFTs, buyNFT, delistNFT, listNFT, getTran
 import "./App.css";
 import ethIcon from './assets/eth-icon.svg';
 import launchpadLogo from './assets/launchpad-logo.svg';
+import Spline from '@splinetool/react-spline';
 
 function App() {
     const [price, setPrice] = useState("");
@@ -215,6 +216,18 @@ function App() {
             <div className="space-bg">
                 <div className="stars"></div>
             </div>
+
+            {/* Add Spline section */}
+            <section className="hero-section">
+                <div className="spline-container">
+                    <Spline scene="https://prod.spline.design/jo41JHu47FJArcVu/scene.splinecode" />
+                </div>
+                <div className="hero-content">
+                    <h1>Welcome to LaunchPad</h1>
+                    <p>Discover, collect, and trade unique space NFTs</p>
+                </div>
+            </section>
+
             <header>
                 <div className="header-content">
                     <div className="logo">

@@ -81,6 +81,8 @@ header {
   max-width: 1600px;
   margin: 80px auto 0;
   padding: 24px;
+  position: relative;
+  z-index: 3;
 }
 
 /* NFT Grid Layout */
@@ -167,7 +169,7 @@ header {
   right: 0;
   bottom: 0;
   background: radial-gradient(circle at center, #0c1424 0%, #04111d 100%);
-  z-index: -1;
+  z-index: 0;
 }
 
 .stars {
@@ -175,8 +177,8 @@ header {
   width: 100%;
   height: 100%;
   background: url('../src/assets/stars-bg.svg') repeat;
-  opacity: 0.5;
-  z-index: -1;
+  opacity: 0.3;
+  z-index: 0;
 }
 
 /* Transaction History */
@@ -463,4 +465,64 @@ header {
 
 [data-theme='light'] .stars {
   opacity: 0.2;
+}
+
+/* Hero Section with Spline */
+.hero-section {
+    position: relative;
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.spline-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    color: var(--text-color);
+    padding: 20px;
+    background: rgba(26, 29, 38, 0.7);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    max-width: 600px;
+}
+
+.hero-content h1 {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-content p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+/* Update existing styles */
+.app-container {
+    margin-top: 0; /* Remove the top margin since we have the hero section */
+    position: relative;
+    z-index: 3;
+}
+
+header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
 }
