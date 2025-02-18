@@ -497,14 +497,54 @@ header {
     border-radius: 16px;
     backdrop-filter: blur(8px);
     max-width: 600px;
+    width: 600px;
 }
 
 .hero-content h1 {
     font-size: 3.5rem;
     margin-bottom: 1rem;
-    background: var(--gradient);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: white;
+  text-align: center;
+    line-height: 0.9;
+}
+
+.welcome-text, .launchpad-text {
+    display: block;
+    line-height: 0.9;
+    opacity: 0;
+}
+
+.welcome-text {
+    animation: fadeIn 0.1s forwards,
+               typing 2s steps(10, end);
+    margin-bottom: 0;
+}
+
+.launchpad-text {
+    display: inline-block;
+    animation: fadeIn 0.1s 2s forwards,
+               typing 2s steps(9, end) 2s,
+               blink-caret .75s step-end infinite 4s;
+    border-right: 4px solid transparent;
+    padding-right: 4px;
+}
+
+.launchpad-text.typing {
+    border-right: 2px solid white;
+}
+
+@keyframes typing {
+    from { clip-path: inset(0 100% 0 0); }
+    to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
+@keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: white }
 }
 
 .hero-content p {
@@ -514,7 +554,7 @@ header {
 
 /* Update existing styles */
 .app-container {
-    margin-top: 0; /* Remove the top margin since we have the hero section */
+    margin-top: 0;
     position: relative;
     z-index: 3;
 }
@@ -526,3 +566,4 @@ header {
     right: 0;
     z-index: 100;
 }
+

@@ -1,25 +1,88 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { ethers } from "ethers";
-import { getEthereumContract, getListedNFTs, buyNFT, delistNFT, listNFT, getTransactionHistory } from "./web3";
-import "./App.css";
-import ethIcon from './assets/eth-icon.svg';
-import launchpadLogo from './assets/launchpad-logo.svg';
-import Spline from '@splinetool/react-spline';
+import React, { useState, useCallback, useEffect } from "react";
+import { CSSTransition } from "react-transition-group";
+import { getListedNFTs, buyNFT, delistNFT, listNFT, getTransactionHistory, mintNFT, getEthereumContract, getNFTMetadata } from "./web3";
+import "./style.css";
+import "./modal.css";
+import "./footer.css";
+import "./transaction.css";
+import "./navbar.css";
+import "./loading.css";
+import "./notification.css";
+import logo from './assets/logo.png';
 
 function App() {
-    const [price, setPrice] = useState("");
     const [account, setAccount] = useState("");
-    const [tokenId, setTokenId] = useState("");
-    const [nftData, setNftData] = useState(null);
     const [listedNFTs, setListedNFTs] = useState([]);
-    const [transactions, setTransactions] = useState([]);
-    const [ipfsUrl, setIpfsUrl] = useState("");
     const [isConnecting, setIsConnecting] = useState(false);
-    const [fetchTokenId, setFetchTokenId] = useState("");
-    const [theme, setTheme] = useState('dark');
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("");
+    const [notification, setNotification] = useState(null);
+    const [showRoleModal, setShowRoleModal] = useState(false);
+    const [selectedRole, setSelectedRole] = useState(null);
+    const [transactionHistory, setTransactionHistory] = useState([]);
+    const [showHistory, setShowHistory] = useState(false);
 
-    // Define these callbacks first
+    const scrollToSection = (sectionId) => {
+        setTimeout(() => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100); // Small delay to ensure section is rendered
+    };
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showFetchModal, setShowFetchModal] = useState(false);
+    const [showListModal, setShowListModal] = useState(false);
+    const [fetchIndex, setFetchIndex] = useState('');
+    const [fetchedNFT, setFetchedNFT] = useState(null);
+    const [listingDetails, setListingDetails] = useState({
+        tokenId: '',
+        price: ''
+    });
+    const [tokenURI, setTokenURI] = useState("");
+
+    // Keep existing Web3 functions
+    const showNotification = (title, message, type = 'info') => {
+        setNotification({ title, message, type });
+        setTimeout(() => setNotification(null), 5000);
+    };
+
+    const LoadingScreen = () => {
+        return isLoading ? (
+            <div className="loading-overlay">
+                <div className="loading-spinner">
+                    <div className="eth-logo" />
+                </div>
+                <div className="loading-text">{loadingMessage}</div>
+            </div>
+        ) : null;
+    };
+
+    const Notification = () => {
+        if (!notification) return null;
+
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            info: 'fas fa-info-circle'
+        };
+
+        return (
+            <div className={`notification ${notification.type} show`}>
+                <i className={icons[notification.type]} />
+                <div className="notification-content">
+                    <div className="notification-title">{notification.title}</div>
+                    <div className="notification-message">{notification.message}</div>
+                </div>
+                <button className="notification-close" onClick={() => setNotification(null)}>
+                    <i className="fas fa-times" />
+                </button>
+            </div>
+        );
+    };
+
     const fetchListedNFTs = useCallback(async () => {
+        setLoadingMessage("Fetching listed NFTs...");
         try {
             const nfts = await getListedNFTs();
             setListedNFTs(nfts);
@@ -28,26 +91,7 @@ function App() {
         }
     }, []);
 
-    const fetchTransactionHistory = useCallback(async () => {
-        try {
-            const history = await getTransactionHistory();
-            setTransactions(history.reverse());
-        } catch (error) {
-            console.error("Error fetching transaction history:", error);
-        }
-    }, []);
-
-    // Then use them in fetchInitialData
-    const fetchInitialData = useCallback(async () => {
-        try {
-            await fetchListedNFTs();
-            await fetchTransactionHistory();
-        } catch (error) {
-            console.error("Error fetching initial data:", error);
-        }
-    }, [fetchListedNFTs, fetchTransactionHistory]);
-
-    // Connect MetaMask
+    // Connect wallet function
     const connectWallet = async () => {
         if (!window.ethereum) {
             alert("Please install MetaMask.");
@@ -60,7 +104,8 @@ function App() {
             setIsConnecting(true);
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
             setAccount(accounts[0]);
-            await fetchInitialData();
+            setShowRoleModal(true); // Show role modal after connecting
+            await fetchListedNFTs();
         } catch (error) {
             console.error("Connection error:", error);
             alert("Failed to connect wallet.");
@@ -69,337 +114,669 @@ function App() {
         }
     };
 
-    // Mint NFT
-    const mintNFT = async () => {
-        if (!ipfsUrl) return alert("Please enter an IPFS URL.");
-        try {
-            const contract = await getEthereumContract();
-            const tx = await contract.mintNFT(ipfsUrl);
-            await tx.wait();
-            alert("NFT Minted Successfully!");
-        } catch (error) {
-            console.error("Minting error:", error);
-            alert("Failed to mint NFT.");
-        }
+    // Handle role selection
+    const handleRoleSelect = async (role) => {
+        setSelectedRole(role);
+        setShowRoleModal(false);
+        await fetchListedNFTs();
+        await loadTransactionHistory();
     };
 
-    // Fetch NFT Metadata
-    const fetchNFT = async () => {
-        if (!fetchTokenId) {
-            alert("Please enter a Token ID");
-            return;
-        }
-
+    const loadTransactionHistory = async () => {
+        setLoadingMessage("Loading transaction history...");
         try {
-            const contract = await getEthereumContract();
-            const metadataURI = await contract.tokenURI(fetchTokenId);
-            
-            // Convert IPFS URI to HTTP URL if needed
-            const url = metadataURI.replace('ipfs://', 'https://ipfs.io/ipfs/');
-            
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Failed to fetch metadata');
-            
-            const metadata = await response.json();
-            
-            // Convert IPFS image URL if needed
-            if (metadata.image && metadata.image.startsWith('ipfs://')) {
-                metadata.image = metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/');
-            }
-            
-            setNftData(metadata);
-        } catch (error) {
-            console.error("Error fetching NFT:", error);
-            alert("Failed to fetch NFT. Make sure the Token ID exists.");
-            setNftData(null);
-        }
-    };
-
-    // List NFT
-    const handleListNFT = async () => {
-        if (!tokenId || !price) return alert("Enter Token ID and Price.");
-        try {
-            await listNFT(tokenId, price);
-            alert(`NFT ${tokenId} listed for ${price} ETH!`);
-            fetchListedNFTs();
-            fetchTransactionHistory(); // Refresh transactions
-        } catch (error) {
-            console.error("Listing error:", error);
-            alert("Failed to list NFT.");
-        }
-    };
-
-    // Delist NFT
-    const handleDelistNFT = async (tokenId) => {
-        try {
-            await delistNFT(tokenId);
-            alert(`NFT ${tokenId} delisted!`);
-            fetchListedNFTs();
-            fetchTransactionHistory(); // Refresh transactions
-        } catch (error) {
-            console.error("Delisting error:", error);
-            alert("Failed to delist NFT.");
+            const history = await getTransactionHistory();
+            setTransactionHistory(history);
+        } catch (err) {
+            console.error('Failed to load transaction history:', err);
         }
     };
 
     const handleBuyNFT = async (tokenId, price) => {
         if (!account) {
-            alert("Please connect your wallet first");
+            showNotification('Connection Required', 'Please connect your wallet to continue', 'error');
             return;
         }
 
         try {
-            const success = await buyNFT(tokenId, price);
-            if (success) {
-                alert(`Successfully purchased NFT #${tokenId}!`);
-                // Refresh the listings and transaction history
-                await fetchListedNFTs();
-                await fetchTransactionHistory();
-            }
-        } catch (error) {
-            console.error("Error buying NFT:", error);
-            alert(error.message || "Failed to buy NFT. Please try again.");
+            setLoadingMessage("Preparing purchase transaction...");
+            setIsLoading(true);
+            
+            const tx = await buyNFT(tokenId, price);
+            setLoadingMessage("Confirming purchase on blockchain...");
+            const receipt = await tx.wait();
+            
+            showNotification('Success', 'NFT purchased successfully!', 'success');
+            console.log('Purchase confirmed in block:', receipt.blockNumber);
+            
+            await Promise.all([
+                fetchListedNFTs(),
+                loadTransactionHistory()
+            ]);
+        } catch (err) {
+            console.error('Failed to buy NFT:', err);
+            showNotification('Error', err.message || 'Failed to purchase NFT', 'error');
+            
+            // Refresh data to ensure UI is in sync
+            await Promise.all([
+                fetchListedNFTs(),
+                loadTransactionHistory()
+            ]);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // Add disconnectWallet function
-    const disconnectWallet = () => {
-        setAccount("");
+    const handleDelistNFT = async (tokenId) => {
+        if (!account) {
+            showNotification('Connection Required', 'Please connect your wallet to continue', 'error');
+            return;
+        }
+
+        try {
+            setLoadingMessage("Preparing delisting transaction...");
+            setIsLoading(true);
+            
+            const tx = await delistNFT(tokenId);
+            setLoadingMessage("Confirming delisting on blockchain...");
+            await tx.wait();
+            
+            showNotification('Success', 'NFT has been delisted successfully', 'success');
+            await Promise.all([
+                fetchListedNFTs(),
+                loadTransactionHistory()
+            ]);
+        } catch (err) {
+            console.error('Failed to delist NFT:', err);
+            showNotification('Error', err.message || 'Failed to delist NFT', 'error');
+            
+            await Promise.all([
+                fetchListedNFTs(),
+                loadTransactionHistory()
+            ]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    // Update useEffect to only fetch data when connected
+    const handleListNFT = async (tokenId, price) => {
+        if (!account) {
+            showNotification('Connection Required', 'Please connect your wallet to continue', 'error');
+            return;
+        }
+
+        setIsLoading(true);
+        setLoadingMessage("Verifying ownership...");
+
+        try {
+            const tx = await listNFT(tokenId, price);
+            setLoadingMessage("Confirming listing on blockchain...");
+            const receipt = await tx.wait();
+            
+            showNotification('Success', `NFT #${tokenId} listed for ${price} ETH`, 'success');
+            console.log('Listing confirmed in block:', receipt.blockNumber);
+        } catch (err) {
+            console.error('Failed to list NFT:', err);
+            showNotification('Error', err.message, 'error');
+        } finally {
+            setIsLoading(false);
+            // Always refresh data to ensure UI is in sync
+            await Promise.all([
+                fetchListedNFTs(),
+                loadTransactionHistory()
+            ]).catch(console.error);
+        }
+    };
+
     useEffect(() => {
-        const checkConnection = async () => {
-            if (window.ethereum) {
-                try {
-                    const accounts = await window.ethereum.request({ method: "eth_accounts" });
-                    if (accounts.length > 0) {
-                        setAccount(accounts[0]);
-                        await fetchInitialData();
-                    }
-                } catch (error) {
-                    console.error("Error checking connection:", error);
-                }
-            }
-        };
-
-        checkConnection();
-
-        // Listen for account changes
-        if (window.ethereum) {
-            window.ethereum.on('accountsChanged', (accounts) => {
-                if (accounts.length > 0) {
-                    setAccount(accounts[0]);
-                    fetchInitialData();
-                } else {
-                    setAccount('');
-                }
-            });
+        if (selectedRole) {
+            fetchListedNFTs();
+            loadTransactionHistory();
         }
-
-        return () => {
-            if (window.ethereum) {
-                window.ethereum.removeListener('accountsChanged', () => {});
-            }
-        };
-    }, [fetchInitialData]);
-
-    // Add theme toggle function
-    const toggleTheme = () => {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-        document.documentElement.setAttribute('data-theme', newTheme);
-    };
+    }, [selectedRole, fetchListedNFTs]);
 
     return (
-        <div>
-            <div className="space-bg">
-                <div className="stars"></div>
+        <>
+            <Notification />
+            <LoadingScreen />
+            <div className="gradient-bg">
+                <div className="gradient-overlay"></div>
             </div>
 
-            {/* Add Spline section */}
-            <section className="hero-section">
-                <div className="spline-container">
-                    <Spline scene="https://prod.spline.design/jo41JHu47FJArcVu/scene.splinecode" />
+            <nav className="navbar">
+                <div className="logo">
+                    <img src={logo} alt="LaunchPad" />
                 </div>
+                <div className="nav-links">
+                    <button 
+                        onClick={() => {
+                            setShowHistory(false);
+                            scrollToSection('marketplace');
+                        }} 
+                        className={!showHistory ? 'active' : ''}
+                    >
+                        <i className="fas fa-store"></i>
+                        Marketplace
+                    </button>
+                    <button 
+                        onClick={() => setShowCreateModal(true)}
+                    >
+                        <i className="fas fa-plus-circle"></i>
+                        Create
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setShowHistory(true);
+                            scrollToSection('history');
+                        }}
+                        className={showHistory ? 'active' : ''}
+                    >
+                        <i className="fas fa-history"></i>
+                        History
+                    </button>
+                </div>
+                <div className="nav-actions">
+                    <button 
+                        className="connect-wallet"
+                        onClick={connectWallet}
+                        disabled={isConnecting}
+                    >
+                        {account ? (
+                            <>
+                                <i className="fas fa-user-astronaut"></i>
+                                {account.slice(0, 6)}...{account.slice(-4)}
+                            </>
+                        ) : (
+                            <>
+                                <i className="fas fa-wallet"></i>
+                                {isConnecting ? 'Connecting...' : 'Connect'}
+                            </>
+                        )}
+                    </button>
+                </div>
+            </nav>
+
+            {/* Hero Section */}
+            <section className="hero" id="home">
                 <div className="hero-content">
-                    <h1>Welcome to LaunchPad</h1>
-                    <p>Discover, collect, and trade unique space NFTs</p>
+                    <h1>Discover, Collect, and Trade Space-Themed NFTs</h1>
+                    <p>The first NFT marketplace dedicated to space enthusiasts and cosmic art collectors</p>
+                    <div className="hero-buttons">
+                        <button className="primary-btn" onClick={() => document.querySelector('#marketplace').scrollIntoView({ behavior: 'smooth' })}>Explore NFTs</button>
+                        {!account ? (
+                            <button className="secondary-btn" onClick={connectWallet}>Connect Wallet</button>
+                        ) : (
+                            <button className="secondary-btn" onClick={() => setShowCreateModal(true)}>Create NFT</button>
+                        )}
+                    </div>
                 </div>
             </section>
 
-            <header>
-                <div className="header-content">
-                    <div className="logo">
-                        <img src={launchpadLogo} alt="LaunchPad" />
-                        <span>LaunchPad</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <button 
-                            className="theme-toggle" 
-                            onClick={toggleTheme}
-                            aria-label="Toggle theme"
-                        >
-                            {theme === 'dark' ? '☀️' : '🌙'}
-                        </button>
-                        <button 
-                            className="connect-btn"
-                            onClick={account ? disconnectWallet : connectWallet}
-                            disabled={isConnecting}
-                        >
-                            {account ? 
-                                `${account.slice(0, 6)}...${account.slice(-4)}` : 
-                                isConnecting ? 'Connecting...' : 'Connect Wallet'
-                            }
-                        </button>
+            {/* Role Selection Modal */}
+            {showRoleModal && (
+                <div className="role-selection-modal">
+                    <div className="modal-content">
+                        <h2>Welcome to LaunchPad</h2>
+                        <p>Please select your role:</p>
+                        <div className="role-buttons">
+                            <button 
+                                className="role-btn seller-btn" 
+                                onClick={() => handleRoleSelect('seller')}
+                            >
+                                <i className="fas fa-store"></i>
+                                <span>I want to Sell NFTs</span>
+                                <p className="role-description">Create, list, and manage your NFTs</p>
+                            </button>
+                            <button 
+                                className="role-btn buyer-btn"
+                                onClick={() => handleRoleSelect('buyer')}
+                            >
+                                <i className="fas fa-shopping-cart"></i>
+                                <span>I want to Buy NFTs</span>
+                                <p className="role-description">Browse and collect NFTs</p>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </header>
+            )}
 
-            <div className="app-container">
-                <div className="filters">
-                    <button className="filter-btn active">All</button>
-                    <button className="filter-btn">Art</button>
-                    <button className="filter-btn">Collectibles</button>
-                    <button className="filter-btn">Games</button>
-                </div>
-
-                <section className="mint-section">
-                    <h2>Create New NFT</h2>
-                    <div className="mint-form">
-                        <input
-                            type="text"
-                            className="mint-input"
-                            value={ipfsUrl}
-                            onChange={(e) => setIpfsUrl(e.target.value)}
-                            placeholder="Enter IPFS URL"
-                        />
-                        <div className="button-container">
-                            <button className="buy-btn" onClick={mintNFT}>Mint NFT</button>
+            {/* Marketplace Section */}
+            <section id="marketplace" className="section">
+                {account && selectedRole && (
+                    <div className="marketplace-container">
+                        <div className="marketplace-header">
+                            <div className="tab-buttons">
+                                <button 
+                                    className={`tab-btn ${!showHistory ? 'active' : ''}`}
+                                    onClick={() => setShowHistory(false)}
+                                >
+                                    <i className="fas fa-store"></i>
+                                    Marketplace
+                                </button>
+                                <button 
+                                    className={`tab-btn ${showHistory ? 'active' : ''}`}
+                                    onClick={() => setShowHistory(true)}
+                                >
+                                    <i className="fas fa-history"></i>
+                                    History
+                                </button>
+                            </div>
+                            <div className="header-actions">
+                                <button 
+                                    className="action-btn fetch-btn"
+                                    onClick={() => setShowFetchModal(true)}
+                                >
+                                    <i className="fas fa-search"></i>
+                                    Fetch NFT
+                                </button>
+                                <button 
+                                    className="action-btn list-btn"
+                                    onClick={() => setShowListModal(true)}
+                                >
+                                    <i className="fas fa-tag"></i>
+                                    List NFT
+                                </button>
+                                <button 
+                                    className="action-btn refresh-btn"
+                                    onClick={() => fetchListedNFTs()}
+                                >
+                                    <i className="fas fa-sync-alt"></i>
+                                    Refresh
+                                </button>
+                                <button 
+                                    className="action-btn create-btn"
+                                    onClick={() => setShowCreateModal(true)}
+                                >
+                                    <i className="fas fa-plus"></i>
+                                    Create NFT
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </section>
-
-                <section className="mint-section">
-                    <h2>List Your NFT</h2>
-                    <div className="mint-form list-form">
-                        <input
-                            type="text"
-                            className="mint-input"
-                            value={tokenId}
-                            onChange={(e) => setTokenId(e.target.value)}
-                            placeholder="Enter Token ID"
-                        />
-                        <input
-                            type="number"
-                            step="0.01"
-                            className="mint-input"
-                            value={price}
-                            onChange={(e) => setPrice(e.target.value)}
-                            placeholder="Enter Price in ETH"
-                        />
-                        <div className="button-container" style={{ gridColumn: "1 / -1" }}>
-                            <button className="list-btn" onClick={handleListNFT}>List for Sale</button>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="mint-section">
-                    <h2>Fetch NFT Details</h2>
-                    <div className="mint-form">
-                        <input
-                            type="text"
-                            className="mint-input"
-                            value={fetchTokenId}
-                            onChange={(e) => setFetchTokenId(e.target.value)}
-                            placeholder="Enter Token ID to fetch"
-                        />
-                        <div className="button-container">
-                            <button className="fetch-btn" onClick={fetchNFT}>Fetch NFT</button>
-                        </div>
-                    </div>
-                    {/* Display fetched NFT details */}
-                    {nftData && (
-                        <div className="fetched-nft">
-                            <h3>NFT #{fetchTokenId}</h3>
-                            <div className="nft-details">
-                                <img src={nftData.image} alt={nftData.name} />
-                                <div className="nft-info">
-                                    <h4>{nftData.name}</h4>
-                                    <p>{nftData.description}</p>
-                                    {nftData.attributes?.map((attr, index) => (
-                                        <div key={index} className="nft-attribute">
-                                            <span>{attr.trait_type}:</span>
-                                            <span>{attr.value}</span>
+                        
+                        <div id="marketplace">
+                        {!showHistory ? (
+                            <div className="nft-grid">
+                                {listedNFTs.map((nft) => (
+                                    <div key={nft.tokenId} className="nft-card">
+                                        <div className="nft-image-container">
+                                            <img 
+                                                src={nft.image || '/assets/space-placeholder.svg'} 
+                                                alt={nft.name}
+                                                onError={(e) => {
+                                                    e.target.src = '/assets/space-placeholder.svg';
+                                                }}
+                                            />
+                                            {nft.owner?.toLowerCase() === account.toLowerCase() && (
+                                                <div className="owner-badge">
+                                                    <i className="fas fa-user-check"></i>
+                                                    You Own This
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="nft-content">
+                                            <h3>{nft.name || `Space NFT #${nft.tokenId}`}</h3>
+                                            <p className="nft-description">{nft.description}</p>
+                                            <div className="price-tag">
+                                                <i className="fab fa-ethereum"></i>
+                                                <span>{nft.price} ETH</span>
+                                            </div>
+                                            {account && nft.owner?.toLowerCase() === account.toLowerCase() ? (
+                                                <div className="seller-actions">
+                                                    <button 
+                                                        onClick={() => handleDelistNFT(nft.tokenId)}
+                                                        disabled={isLoading}
+                                                        className="delist-btn"
+                                                    >
+                                                        <i className="fas fa-times"></i>
+                                                        {isLoading ? 'Processing...' : 'Delist'}
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newPrice = prompt('Enter new price in ETH:');
+                                                            if (newPrice) handleListNFT(nft.tokenId, newPrice);
+                                                        }}
+                                                        disabled={isLoading}
+                                                        className="update-price-btn"
+                                                    >
+                                                        <i className="fas fa-tag"></i>
+                                                        {isLoading ? 'Processing...' : 'Update Price'}
+                                                    </button>
+                                                </div>
+                                            ) : account ? (
+                                                <button 
+                                                    onClick={() => handleBuyNFT(nft.tokenId, nft.price)}
+                                                    disabled={isLoading}
+                                                    className="buy-btn"
+                                                >
+                                                    <i className="fas fa-shopping-cart"></i>
+                                                    {isLoading ? 'Processing...' : 'Buy Now'}
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div id="history" className="transaction-history">
+                                <h2>Transaction History</h2>
+                                <div className="transaction-list">
+                                    {transactionHistory.map((tx) => (
+                                        <div key={tx.transactionHash} className={`transaction-item ${tx.type.toLowerCase()}`}>
+                                            <div className="transaction-icon">
+                                                {tx.type === 'Listed' && <i className="fas fa-tag"></i>}
+                                                {tx.type === 'Purchased' && <i className="fas fa-shopping-cart"></i>}
+                                                {tx.type === 'Delisted' && <i className="fas fa-archive"></i>}
+                                            </div>
+                                            <div className="transaction-content">
+                                                <div className="transaction-header">
+                                                    <span className="token-id">Token #{tx.tokenId}</span>
+                                                    <span className="timestamp">{new Date(tx.timestamp).toLocaleString()}</span>
+                                                </div>
+                                                <div className="transaction-details">
+                                                    <span className="type">{tx.type}</span>
+                                                    {tx.price && <span className="price">{tx.price} ETH</span>}
+                                                    <span className="address">
+                                                        <i className="fas fa-user-astronaut"></i>
+                                                        {tx.from.slice(0, 6)}...{tx.from.slice(-4)}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
+                        )}
                         </div>
-                    )}
-                </section>
+                    </div>
+                )}
+            </section>
 
-                <section className="marketplace">
-                    <h2>Featured LaunchPad NFTs</h2>
-                    <div className="nft-grid">
-                        {listedNFTs.map((nft) => (
-                            <div key={nft.tokenId} className="nft-card">
-                                <img 
-                                    src={nft.image || '/assets/space-placeholder.svg'} 
-                                    alt={nft.name}
-                                    onError={(e) => {
-                                        e.target.src = '/assets/space-placeholder.svg';
-                                        e.target.onerror = null;
-                                    }}
+            {/* How It Works Section */}
+            <section className="how-it-works">
+                <h2>How It Works</h2>
+                <div className="steps-container">
+                    <div className="step">
+                        <i className="fas fa-wallet"></i>
+                        <h3>Connect Wallet</h3>
+                        <p>Connect your MetaMask wallet to get started</p>
+                    </div>
+                    <div className="step">
+                        <i className="fas fa-image"></i>
+                        <h3>Create NFT</h3>
+                        <p>Upload your space-themed artwork and create NFTs</p>
+                    </div>
+                    <div className="step">
+                        <i className="fas fa-store"></i>
+                        <h3>List for Sale</h3>
+                        <p>List your NFTs on the marketplace</p>
+                    </div>
+                    <div className="step">
+                        <i className="fas fa-exchange-alt"></i>
+                        <h3>Buy/Sell NFTs</h3>
+                        <p>Trade NFTs with other space enthusiasts</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Footer */}
+            <footer className="footer">
+                <div className="footer-content">
+                    <div className="footer-section">
+                        <h3>LaunchPad</h3>
+                        <p>The ultimate space-themed NFT marketplace</p>
+                    </div>
+                    <div className="footer-section">
+                        <h3>Quick Links</h3>
+                        <a href="#marketplace">Marketplace</a>
+                        <a href="#create">Create NFT</a>
+                        <a href="#profile">Profile</a>
+                    </div>
+                    <div className="footer-section">
+                        <h3>Connect</h3>
+                        <div className="social-links">
+                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
+                                <i className="fab fa-twitter"></i>
+                            </a>
+                            <a href="https://discord.com" target="_blank" rel="noopener noreferrer">
+                                <i className="fab fa-discord"></i>
+                            </a>
+                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+                                <i className="fab fa-instagram"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div className="footer-bottom">
+                    <div className="footer-bottom-content">
+                        <p>&copy; 2025 LaunchPad. All rights reserved.</p>
+                    </div>
+                </div>
+            </footer>
+
+            {/* Create NFT Modal */}
+            {showCreateModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button 
+                            className="modal-close"
+                            onClick={() => {
+                                setShowCreateModal(false);
+                                setTokenURI("");
+                            }}
+                            aria-label="Close modal"
+                        />
+                        <h2>Create New NFT</h2>
+                        <div className="modal-form">
+                            <div className="form-group">
+                                <label>IPFS URI</label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter your metadata.json IPFS link"
+                                    value={tokenURI}
+                                    onChange={(e) => setTokenURI(e.target.value)}
                                 />
-                                <div className="nft-info">
-                                    <h3 className="nft-name">{nft.name || `Space NFT #${nft.tokenId}`}</h3>
-                                    <div className="price-container">
-                                        <div className="eth-price">
-                                            <img src={ethIcon} alt="ETH" className="eth-icon" />
-                                            <span>{nft.price} ETH</span>
+                            </div>
+                            <div className="modal-actions">
+                                <button 
+                                    className="primary-btn" 
+                                    onClick={async () => {
+                                        try {
+                                            setIsLoading(true);
+                                            await mintNFT(tokenURI);
+                                            await fetchListedNFTs();
+                                            setShowCreateModal(false);
+                                            setTokenURI("");
+                                            alert("NFT created successfully! You can now list it for sale.");
+                                        } catch (error) {
+                                            console.error("Error creating NFT:", error);
+                                            alert("Failed to create NFT: " + error.message);
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
+                                    }}
+                                    disabled={isLoading || !tokenURI}
+                                >
+                                    {isLoading ? "Creating..." : "Create NFT"}
+                                </button>
+                                <button 
+                                    className="secondary-btn"
+                                    onClick={() => {
+                                        setShowCreateModal(false);
+                                        setTokenURI("");
+                                    }}
+                                >
+                                    Create Another
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Fetch NFT Modal */}
+            {showFetchModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button 
+                            className="modal-close"
+                            onClick={() => {
+                                setShowFetchModal(false);
+                                setFetchIndex('');
+                                setFetchedNFT(null);
+                            }}
+                            aria-label="Close modal"
+                        />
+                        <h2>Fetch NFT</h2>
+                        <div className="search-group">
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Enter NFT index"
+                                value={fetchIndex}
+                                onChange={(e) => setFetchIndex(e.target.value)}
+                            />
+                            <button 
+                                className="search-btn primary-btn" 
+                                onClick={async () => {
+                                    try {
+                                        setIsLoading(true);
+                                        const metadata = await getNFTMetadata(fetchIndex);
+                                        
+                                        if (!metadata) {
+                                            throw new Error("Failed to fetch NFT metadata");
+                                        }
+
+                                        const contract = await getEthereumContract();
+                                        const owner = await contract.ownerOf(fetchIndex);
+                                        
+                                        setFetchedNFT({
+                                            tokenId: fetchIndex,
+                                            name: metadata.name,
+                                            description: metadata.description,
+                                            image: metadata.image, // The image URL is already processed in getNFTMetadata
+                                            owner
+                                        });
+                                    } catch (error) {
+                                        console.error("Error fetching NFT:", error);
+                                        alert("Failed to fetch NFT: " + error.message);
+                                    } finally {
+                                        setIsLoading(false);
+                                    }
+                                }}
+                                disabled={isLoading || !fetchIndex}
+                            >
+                                {isLoading ? "Fetching..." : "Search"}
+                            </button>
+                        </div>
+
+                        {fetchedNFT && (
+                            <div className="marketplace-card">
+                                {fetchedNFT.owner.toLowerCase() === account.toLowerCase() && (
+                                    <div className="ownership-badge">
+                                        <i className="fas fa-user"></i>
+                                        You Own This
+                                    </div>
+                                )}
+                                <div className="card-image">
+                                    <img 
+                                        src={fetchedNFT.image || '/assets/space-placeholder.svg'} 
+                                        alt={fetchedNFT.name || `LaunchPad NFT #${fetchedNFT.tokenId}`}
+                                    />
+                                </div>
+                                <div className="card-content">
+                                    <h3>{fetchedNFT.name || `LaunchPad NFT #${fetchedNFT.tokenId}`}</h3>
+                                    <p className="nft-type">{fetchedNFT.description || 'Moon NFT'}</p>
+                                    <div className="token-info">
+                                        <div className="token-id">
+                                            <span className="label">Token ID</span>
+                                            <span className="value">#{fetchedNFT.tokenId}</span>
                                         </div>
-                                        {account && account.toLowerCase() === nft.owner?.toLowerCase() ? (
-                                            <button className="delist-btn" onClick={() => handleDelistNFT(nft.tokenId)}>
-                                                Delist
-                                            </button>
-                                        ) : (
-                                            <button 
-                                                className="buy-btn"
-                                                onClick={() => {
-                                                    if (!account) {
-                                                        alert("Please connect your wallet first");
-                                                        return;
-                                                    }
-                                                    handleBuyNFT(nft.tokenId, nft.price);
-                                                }}
-                                            >
-                                                Buy Now
-                                            </button>
-                                        )}
+                                        <div className="owner-info">
+                                            <span className="label">Owner</span>
+                                            <span className="value">
+                                                <i className="fas fa-user-astronaut"></i>
+                                                {fetchedNFT.owner.slice(0, 6)}...{fetchedNFT.owner.slice(-4)}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
-                </section>
+                </div>
+            )}
 
-                <section className="transaction-history">
-                    <h2>Recent Activity</h2>
-                    {transactions.map((tx, index) => (
-                        <div key={index} className="tx-item">
-                            <div className="tx-info">
-                                <span className="tx-type">{tx.type}</span>
-                                <span className="tx-id">Token #{tx.tokenId}</span>
+            {/* List NFT Modal */}
+            {showListModal && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button 
+                            className="modal-close"
+                            onClick={() => {
+                                setShowListModal(false);
+                                setListingDetails({ tokenId: '', price: '' });
+                            }}
+                            aria-label="Close modal"
+                        />
+                        <h2>List NFT for Sale</h2>
+                        <div className="modal-form">
+                            <div className="form-group">
+                                <label>NFT Index</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="Enter NFT index number"
+                                    value={listingDetails.tokenId}
+                                    onChange={(e) => setListingDetails(prev => ({ ...prev, tokenId: e.target.value }))}
+                                />
                             </div>
-                            <div className="tx-price">
-                                {tx.price && `Ξ ${tx.price} ETH`}
+                            <div className="form-group">
+                                <label>Price (ETH)</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.001"
+                                    placeholder="Enter listing price in ETH"
+                                    value={listingDetails.price}
+                                    onChange={(e) => setListingDetails(prev => ({ ...prev, price: e.target.value }))}
+                                />
+                            </div>
+                            <div className="modal-actions">
+                                <button 
+                                    className="primary-btn" 
+                                    onClick={async () => {
+                                        try {
+                                            setIsLoading(true);
+                                            await listNFT(listingDetails.tokenId, listingDetails.price);
+                                            await fetchListedNFTs();
+                                            setShowListModal(false);
+                                            setListingDetails({ tokenId: '', price: '' });
+                                            alert("NFT listed successfully!");
+                                        } catch (error) {
+                                            console.error("Error listing NFT:", error);
+                                            alert("Failed to list NFT: " + error.message);
+                                        } finally {
+                                            setIsLoading(false);
+                                        }
+                                    }}
+                                    disabled={isLoading || !listingDetails.tokenId || !listingDetails.price}
+                                >
+                                    {isLoading ? "Listing..." : "List NFT"}
+                                </button>
+                                <button 
+                                    className="secondary-btn"
+                                    onClick={() => {
+                                        setListingDetails({ tokenId: '', price: '' });
+                                    }}
+                                >
+                                    List Another
+                                </button>
                             </div>
                         </div>
-                    ))}
-                </section>
-            </div>
-        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 

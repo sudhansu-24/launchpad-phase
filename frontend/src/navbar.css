@@ -1,0 +1,103 @@
+html {
+    scroll-padding-top: 80px; /* Height of navbar + some padding */
+    scroll-behavior: smooth;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(13, 17, 28, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.logo {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.logo img {
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+}
+
+.nav-links {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.nav-links button {
+    color: rgba(255, 255, 255, 0.7);
+    background: none;
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-links button:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-links button.active {
+    color: #fff;
+    background: rgba(79, 70, 229, 0.1);
+}
+
+.nav-links button i {
+    font-size: 1rem;
+    color: #6366F1;
+}
+
+.connect-wallet {
+    background: #4F46E5;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.connect-wallet:hover {
+    background: #6366F1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+}
+
+.connect-wallet:active {
+    transform: translateY(0);
+}
+
+.connect-wallet:disabled {
+    background: rgba(79, 70, 229, 0.5);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.connect-wallet i {
+    font-size: 1rem;
+}

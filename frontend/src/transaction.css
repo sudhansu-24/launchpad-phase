@@ -1,0 +1,134 @@
+.transaction-history {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.transaction-history h2 {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: #fff;
+    text-align: center;
+    font-weight: 600;
+}
+
+.transaction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    background: rgba(22, 28, 46, 0.8);
+    padding: 1.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s ease;
+}
+
+.transaction-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.transaction-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.transaction-item.listed .transaction-icon {
+    background: rgba(79, 70, 229, 0.1);
+    color: #6366F1;
+}
+
+.transaction-item.purchased .transaction-icon {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+}
+
+.transaction-item.delisted .transaction-icon {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+}
+
+.transaction-content {
+    flex: 1;
+}
+
+.transaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.token-id {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.1rem;
+}
+
+.timestamp {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+}
+
+.transaction-details {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.type {
+    font-size: 0.9rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.transaction-item.listed .type {
+    background: rgba(79, 70, 229, 0.1);
+    color: #6366F1;
+}
+
+.transaction-item.purchased .type {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+}
+
+.transaction-item.delisted .type {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+}
+
+.price {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #fff;
+    font-weight: 500;
+}
+
+.address {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.address i {
+    color: #6366F1;
+}
