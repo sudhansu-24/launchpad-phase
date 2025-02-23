@@ -2,6 +2,10 @@
 
 LaunchPad NFT Marketplace is a decentralized platform where users can **mint**, **list**, **buy**, and **sell** NFTs on the Ethereum blockchain. Built using **Solidity, Hardhat, React, Ethers.js, and IPFS**, this project offers a seamless and intuitive experience for NFT enthusiasts.
 
+## 🌐 Live Demo
+Check out the live deployment of the LaunchPad NFT Marketplace:
+[https://launchpad-nft.vercel.app/](https://launchpad-nft.vercel.app/)
+
 ---
 
 ## 🌟 Features
