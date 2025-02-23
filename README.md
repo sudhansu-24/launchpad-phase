@@ -80,14 +80,38 @@ This contract handles the NFT minting, listing, buying, and delisting functional
 ---
 
 ## 🎨 UI Screenshots
+
+### 1. Welcome to LaunchPad NFT
+Beautiful landing page with a modern design and smooth animations
 ![Landing Page](frontend/screenshots/1.png)
+
+### 2. Choose Your Role
+Select between Creator or Buyer to access different marketplace features
 ![Role Selection](frontend/screenshots/2.png)
-![Marketplace](frontend/screenshots/3.png)
-![Marketplace](frontend/screenshots/4.png)
-![Marketplace](frontend/screenshots/5.png)
+
+### 3. Creator's Dashboard
+Create and manage your NFTs with an intuitive interface
+![Creator Dashboard](frontend/screenshots/3.png)
+
+### 4. NFT Marketplace Overview
+Browse through a collection of listed NFTs with detailed information
+![NFT Marketplace](frontend/screenshots/4.png)
+
+### 5. NFT Details View
+Examine NFT details including price, description, and ownership information
+![NFT Details](frontend/screenshots/5.png)
+
+### 6. Buyer's Interface
+Easy-to-use interface for purchasing and collecting NFTs
 ![Buyer's View](frontend/screenshots/6.png)
+
+### 7. Transaction History
+Track all your NFT transactions in one place
 ![Transaction History](frontend/screenshots/7.png)
-![Working!!(footer)](frontend/screenshots/8.png)
+
+### 8. Responsive Footer
+Stay connected with our social media and community links
+![Footer Section](frontend/screenshots/8.png)
 
 ---
 
@@ -112,6 +136,3 @@ This project is licensed under the **MIT License**.
 - Hardhat for Solidity development
 - MetaMask for Web3 integration
 - IPFS for NFT metadata storage
-
-
-
