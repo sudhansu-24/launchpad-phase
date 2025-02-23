@@ -2,10 +2,6 @@
 
 LaunchPad NFT Marketplace is a decentralized platform where users can **mint**, **list**, **buy**, and **sell** NFTs on the Ethereum blockchain. Built using **Solidity, Hardhat, React, Ethers.js, and IPFS**, this project offers a seamless and intuitive experience for NFT enthusiasts.
 
-## 🌐 Live Demo
-Check out the live deployment of the LaunchPad NFT Marketplace:
-[https://launchpad-nft.vercel.app/](https://launchpad-nft.vercel.app/)
-
 ---
 
 ## 🌟 Features
@@ -109,6 +105,20 @@ This contract handles the NFT minting, listing, buying, and delisting functional
 ### 8. HOW IT WORKS?? {FOOTER & CONNECTIONS}
 ![Footer Section](frontend/screenshots/8.png)
 
+---
+<div align="center">
+  
+<br />
+
+  <h2 align="center">Krishi Sparsh</h2>
+
+  Krishi Sparsh is a fully responsive contract farming website, <br />Responsive for all devices, build using HTML, CSS, and JavaScript.
+
+  <a href="https://launchpad-nft.vercel.app" target="_blank"><strong>➥ Live Demo</strong></a>
+
+</div>
+
+<br />
 ---
 
 ## 🤝 Contribution
