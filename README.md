@@ -110,8 +110,6 @@ This contract handles the NFT minting, listing, buying, and delisting functional
   
 <br />
 
-  <h2 align="center">LaunchPad NFT</h2>
-
   <a href="https://launchpad-nft.vercel.app" target="_blank"><strong>➥ Live Demo</strong></a>
 
 </div>
