@@ -110,16 +110,14 @@ This contract handles the NFT minting, listing, buying, and delisting functional
   
 <br />
 
-  <h2 align="center">Krishi Sparsh</h2>
-
-  Krishi Sparsh is a fully responsive contract farming website, <br />Responsive for all devices, build using HTML, CSS, and JavaScript.
+  <h2 align="center">LaunchPad NFT</h2>
 
   <a href="https://launchpad-nft.vercel.app" target="_blank"><strong>➥ Live Demo</strong></a>
 
 </div>
 
 <br />
----
+
 
 ## 🤝 Contribution
 Want to contribute? Follow these steps:
