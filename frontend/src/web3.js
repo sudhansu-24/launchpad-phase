@@ -839,6 +839,7 @@ export const buyNFT = async (tokenId, price) => {
     try {
         const contract = await getEthereumContract();
         const provider = new ethers.BrowserProvider(window.ethereum);
+        // eslint-disable-next-line no-unused-vars
         const signer = await provider.getSigner();
 
         // First verify if the NFT is actually for sale

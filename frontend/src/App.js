@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { CSSTransition } from "react-transition-group";
 import { getListedNFTs, buyNFT, delistNFT, listNFT, getTransactionHistory, mintNFT, getEthereumContract, getNFTMetadata } from "./web3";
 import "./style.css";
 import "./modal.css";
@@ -534,13 +533,13 @@ function App() {
                     <div className="footer-section">
                         <h3>Connect</h3>
                         <div className="social-links">
-                            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer">
+                            <a href="https://x.com/Sudhansu_24" target="_blank" rel="noopener noreferrer">
                                 <i className="fab fa-twitter"></i>
                             </a>
-                            <a href="https://discord.com" target="_blank" rel="noopener noreferrer">
-                                <i className="fab fa-discord"></i>
+                            <a href="https://github.com/sudhansu-24" target="_blank" rel="noopener noreferrer">
+                                <i className="fab fa-github"></i>
                             </a>
-                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+                            <a href="https://www.instagram.com/sudhansu_24/" target="_blank" rel="noopener noreferrer">
                                 <i className="fab fa-instagram"></i>
                             </a>
                         </div>
