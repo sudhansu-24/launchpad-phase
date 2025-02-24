@@ -7,6 +7,7 @@ import "./transaction.css";
 import "./navbar.css";
 import "./loading.css";
 import "./notification.css";
+import "./responsive.css";
 import logo from './assets/logo.png';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
     const [selectedRole, setSelectedRole] = useState(null);
     const [transactionHistory, setTransactionHistory] = useState([]);
     const [showHistory, setShowHistory] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const scrollToSection = (sectionId) => {
         setTimeout(() => {
@@ -235,7 +237,7 @@ function App() {
     }, [selectedRole, fetchListedNFTs]);
 
     return (
-        <>
+        <div className="app">
             <Notification />
             <LoadingScreen />
             <div className="gradient-bg">
@@ -244,8 +246,15 @@ function App() {
 
             <nav className="navbar">
                 <div className="logo">
-                    <img src={logo} alt="LaunchPad" />
+                    <img src={logo} alt="LaunchPad Logo" />
                 </div>
+                <button 
+                    className="menu-toggle" 
+                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                    aria-label="Toggle navigation menu"
+                >
+                    <i className={`fas fa-${isMobileMenuOpen ? 'times' : 'bars'}`}></i>
+                </button>
                 <div className="nav-links">
                     <button 
                         onClick={() => {
@@ -274,23 +283,70 @@ function App() {
                         History
                     </button>
                 </div>
-                <div className="nav-actions">
+                <div className="desktop-wallet">
+                    {!account ? (
+                        <button
+                            className="connect-wallet"
+                            onClick={connectWallet}
+                            disabled={isConnecting}
+                        >
+                            {isConnecting ? "Connecting..." : "Connect Wallet"}
+                        </button>
+                    ) : (
+                        <button className="connect-wallet">
+                            {`${account.slice(0, 6)}...${account.slice(-4)}`}
+                        </button>
+                    )}
+                </div>
+                <div className={`mobile-nav ${isMobileMenuOpen ? 'active' : ''}`}>
                     <button 
+                        onClick={() => {
+                            setShowHistory(false);
+                            setIsMobileMenuOpen(false);
+                            scrollToSection('marketplace');
+                        }} 
+                        className={!showHistory ? 'active' : ''}
+                    >
+                        <i className="fas fa-store"></i>
+                        Marketplace
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setShowCreateModal(true);
+                        }}
+                    >
+                        <i className="fas fa-plus-circle"></i>
+                        Create
+                    </button>
+                    <button 
+                        onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            setShowHistory(true);
+                            scrollToSection('history');
+                        }}
+                        className={showHistory ? 'active' : ''}
+                    >
+                        <i className="fas fa-history"></i>
+                        History
+                    </button>
+                    <button
                         className="connect-wallet"
-                        onClick={connectWallet}
+                        onClick={() => {
+                            if (!account) {
+                                connectWallet();
+                            }
+                            setIsMobileMenuOpen(false);
+                        }}
                         disabled={isConnecting}
                     >
-                        {account ? (
-                            <>
-                                <i className="fas fa-user-astronaut"></i>
-                                {account.slice(0, 6)}...{account.slice(-4)}
-                            </>
-                        ) : (
-                            <>
-                                <i className="fas fa-wallet"></i>
-                                {isConnecting ? 'Connecting...' : 'Connect'}
-                            </>
-                        )}
+                        <i className={account ? "fas fa-user-astronaut" : "fas fa-wallet"}></i>
+                        {isConnecting 
+                            ? "Connecting..." 
+                            : account 
+                                ? `${account.slice(0, 6)}...${account.slice(-4)}`
+                                : "Connect Wallet"
+                        }
                     </button>
                 </div>
             </nav>
@@ -397,7 +453,7 @@ function App() {
                             <div className="nft-grid">
                                 {listedNFTs.map((nft) => (
                                     <div key={nft.tokenId} className="nft-card">
-                                        <div className="nft-image-container">
+                                        <div className="card-image-container">
                                             <img 
                                                 src={nft.image || '/assets/space-placeholder.svg'} 
                                                 alt={nft.name}
@@ -412,7 +468,7 @@ function App() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="nft-content">
+                                        <div className="card-content">
                                             <h3>{nft.name || `Space NFT #${nft.tokenId}`}</h3>
                                             <p className="nft-description">{nft.description}</p>
                                             <div className="price-tag">
@@ -775,7 +831,7 @@ function App() {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 }
 
