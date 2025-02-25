@@ -118,6 +118,43 @@ This contract handles the NFT minting, listing, buying, and delisting functional
 <br />
 
 
+## 📱 Mobile Usage Guide
+
+### Setting Up MetaMask on Mobile
+1. Download the MetaMask mobile app from:
+   - [App Store](https://apps.apple.com/us/app/metamask-blockchain-wallet/id1438144202) (iOS)
+   - [Play Store](https://play.google.com/store/apps/details?id=io.metamask) (Android)
+2. Create a new wallet or import your existing wallet using the seed phrase
+3. Connect to the Sepolia testnet:
+   - Open MetaMask
+   - Tap the network selector at the top
+   - Select "Sepolia Test Network"
+
+### Using LaunchPad NFT on Mobile
+1. Open the MetaMask mobile app
+2. Tap on the browser icon (🌐) at the bottom of the MetaMask app
+3. Visit our [Live Demo](https://launchpad-nft.vercel.app) in the MetaMask browser
+4. Your wallet will be automatically connected since you're using MetaMask's browser
+5. Start exploring and trading NFTs!
+
+⚠️ **Important Note**: For the best and most secure experience, always use the built-in MetaMask browser. Other mobile browsers may not work correctly with Web3 applications.
+
+### Tips for Mobile Users
+- Ensure you have sufficient Sepolia ETH for transactions
+- Keep your MetaMask app updated
+- For the best experience, use a stable internet connection
+- Clear browser cache if you encounter any issues
+- Double-check NFT prices and gas fees before confirming transactions
+
+### Mobile Features
+- Swipe gestures for browsing NFTs
+- Responsive design for all screen sizes
+- Touch-optimized buttons and interfaces
+- Quick access to transaction history
+- Easy-to-use image upload for NFT creation
+
+
+
 ## 🤝 Contribution
 Want to contribute? Follow these steps:
 1. **Fork** the repository
