@@ -12,6 +12,7 @@ LaunchPad NFT Marketplace is a decentralized platform where users can **mint**, 
 - 📜 **Transaction History**: View all past transactions.
 - 🔗 **Ethereum Integration**: Supports MetaMask for seamless transactions.
 - ⚡ **Fast & Secure**: Uses Hardhat for smart contract development and Ethers.js for blockchain interaction.
+- 📱 **Fully Responsive**: Optimized for all devices with mobile-first design
 
 ---
 
