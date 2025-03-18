@@ -1,6 +1,50 @@
-import { ethers } from "ethers";   
+import { ethers } from "ethers";
 
-const CONTRACT_ADDRESS = "0xc48Fd5Dd24A12053c50d894f5df598eF0fa713d1";
+// EDUCHAIN Testnet Network Configuration
+export const EDUCHAIN_CONFIG = {
+    chainId: '0xA03CC', // 656476 in hex
+    chainName: 'EDU Chain Testnet',
+    nativeCurrency: {
+        name: 'EDU',
+        symbol: 'EDU',
+        decimals: 18
+    },
+    rpcUrls: ['https://rpc.open-campus-codex.gelato.digital'],
+    blockExplorerUrls: ['https://open-campus-codex-sepolia.drpc.org']
+};
+
+// Your deployed contract address on EDUCHAIN Testnet
+const CONTRACT_ADDRESS = "0xF507f06a486c7a71F75f90430E0C7D198114E87F";
+
+// Function to add EDUCHAIN network to MetaMask
+export const addEduChainNetwork = async () => {
+    try {
+        await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [EDUCHAIN_CONFIG],
+        });
+    } catch (error) {
+        console.error("Error adding EDUCHAIN network:", error);
+        throw error;
+    }
+};
+
+// Function to switch to EDUCHAIN network
+export const switchToEduChain = async () => {
+    try {
+        await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: EDUCHAIN_CONFIG.chainId }],
+        });
+    } catch (error) {
+        if (error.code === 4902) {
+            await addEduChainNetwork();
+        } else {
+            console.error("Error switching to EDUCHAIN network:", error);
+            throw error;
+        }
+    }
+};
 
 const ABI = [
   {
@@ -753,20 +797,19 @@ const fetchWithFallback = async (ipfsUrl) => {
     throw new Error('Failed to fetch from all IPFS gateways');
 };
 
+// Function to get the Ethereum contract
 export const getEthereumContract = async () => {
-  if (!window.ethereum) throw new Error("Please install MetaMask");
-  
-  // Check if already connected
-  const accounts = await window.ethereum.request({ method: "eth_accounts" });
-  if (accounts.length === 0) {
-    throw new Error("Please connect your wallet");
-  }
-
-  const provider = new ethers.BrowserProvider(window.ethereum);
-  const signer = await provider.getSigner();
-  return new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        return new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    } catch (error) {
+        console.error("Error getting Ethereum contract:", error);
+        throw error;
+    }
 };
 
+// Function to get NFT metadata
 export const getNFTMetadata = async (tokenId) => {
     try {
         const contract = await getEthereumContract();
@@ -787,6 +830,7 @@ export const getNFTMetadata = async (tokenId) => {
     }
 };
 
+// Function to get listed NFTs
 export const getListedNFTs = async () => {
     try {
         const contract = await getEthereumContract();
@@ -806,7 +850,7 @@ export const getListedNFTs = async () => {
 
                     return {
                         tokenId: tokenId.toString(),
-                        price: ethers.formatEther(prices[listedTokens.indexOf(tokenId)]),
+                        price: ethers.utils.formatEther(prices[listedTokens.indexOf(tokenId)]),
                         image: metadata.image,
                         name: metadata.name,
                         description: metadata.description,
@@ -816,7 +860,7 @@ export const getListedNFTs = async () => {
                     console.error(`Error fetching metadata for token ${tokenId}:`, error);
                     return {
                         tokenId: tokenId.toString(),
-                        price: ethers.formatEther(prices[listedTokens.indexOf(tokenId)]),
+                        price: ethers.utils.formatEther(prices[listedTokens.indexOf(tokenId)]),
                         image: 'placeholder-image.png',
                         name: `NFT #${tokenId}`,
                         description: 'Metadata unavailable',
@@ -833,13 +877,13 @@ export const getListedNFTs = async () => {
     }
 };
 
+// Function to buy an NFT
 export const buyNFT = async (tokenId, price) => {
     if (!window.ethereum) throw new Error("MetaMask not found!");
 
     try {
         const contract = await getEthereumContract();
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        // eslint-disable-next-line no-unused-vars
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = await provider.getSigner();
 
         // First verify if the NFT is actually for sale
@@ -852,7 +896,7 @@ export const buyNFT = async (tokenId, price) => {
             }
 
             // Verify price matches
-            const listedPrice = ethers.formatEther(prices[tokenIndex]);
+            const listedPrice = ethers.utils.formatEther(prices[tokenIndex]);
             if (listedPrice !== price.toString()) {
                 throw new Error(`Price mismatch. Listed price is ${listedPrice} ETH`);
             }
@@ -865,7 +909,7 @@ export const buyNFT = async (tokenId, price) => {
         }
 
         // Convert price to wei for the transaction
-        const priceInWei = ethers.parseEther(price.toString());
+        const priceInWei = ethers.utils.parseEther(price.toString());
 
         // Attempt to buy
         console.log(`Buying NFT #${tokenId} for ${price} ETH`);
@@ -893,12 +937,91 @@ export const buyNFT = async (tokenId, price) => {
     }
 };
 
+// Function to list an NFT
+export const listNFT = async (tokenId, price) => {
+    if (!window.ethereum) throw new Error("MetaMask not found!");
+
+    const contract = await getEthereumContract();
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = await provider.getSigner();
+    const userAddress = await signer.getAddress();
+
+    // First verify ownership
+    const owner = await contract.ownerOf(tokenId);
+    if (owner.toLowerCase() !== userAddress.toLowerCase()) {
+        console.error("Ownership verification failed:", { owner, userAddress });
+        throw new Error("You can only list NFTs that you own");
+    }
+
+    try {
+        // Convert price to wei
+        const priceInWei = ethers.utils.parseEther(price.toString());
+
+        // Check if NFT is already listed
+        const [listedTokens] = await contract.getAllListedNFTs();
+        if (listedTokens.some(t => t.toString() === tokenId.toString())) {
+            throw new Error("This NFT is already listed");
+        }
+
+        // Attempt to list
+        console.log(`Listing NFT #${tokenId} for ${price} ETH`);
+        const tx = await contract.listNFT(tokenId, priceInWei);
+        console.log('Transaction sent:', tx.hash);
+        
+        // Wait for confirmation
+        const receipt = await tx.wait();
+        console.log('Transaction confirmed in block:', receipt.blockNumber);
+        
+        return tx;
+    } catch (error) {
+        console.error('Error listing NFT:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes("user rejected")) {
+            throw new Error("Transaction was rejected");
+        }
+        
+        throw error;
+    }
+};
+
+// Function to mint an NFT
+export async function mintNFT(tokenURI) {
+    try {
+        const contract = await getEthereumContract();
+        
+        // Send the mint transaction
+        const tx = await contract.mintNFT(tokenURI);
+        console.log('Minting transaction sent:', tx.hash);
+        
+        // Wait for transaction confirmation
+        const receipt = await tx.wait();
+        console.log('Minting confirmed in block:', receipt.blockNumber);
+        
+        // Find the Transfer event which contains the token ID
+        const transferEvent = receipt.events.find(event => event.event === 'Transfer');
+        if (!transferEvent) {
+            throw new Error('Transfer event not found in transaction receipt');
+        }
+        
+        // The token ID is the third argument in the Transfer event
+        const tokenId = transferEvent.args[2].toString();
+        console.log('Minted NFT with token ID:', tokenId);
+        
+        return tokenId;
+    } catch (error) {
+        console.error("Error minting NFT:", error);
+        throw error;
+    }
+}
+
+// Function to delist an NFT
 export const delistNFT = async (tokenId) => {
     if (!window.ethereum) throw new Error("MetaMask not found!");
 
     try {
         const contract = await getEthereumContract();
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         const signer = await provider.getSigner();
         const userAddress = await signer.getAddress();
 
@@ -940,113 +1063,47 @@ export const delistNFT = async (tokenId) => {
     }
 };
 
-export const listNFT = async (tokenId, price) => {
-    if (!window.ethereum) throw new Error("MetaMask not found!");
-
-    const contract = await getEthereumContract();
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const userAddress = await signer.getAddress();
-
-    // First verify ownership
-    const owner = await contract.ownerOf(tokenId);
-    if (owner.toLowerCase() !== userAddress.toLowerCase()) {
-        console.error("Ownership verification failed:", { owner, userAddress });
-        throw new Error("You can only list NFTs that you own");
-    }
-
-    try {
-        // Convert price to wei
-        const priceInWei = ethers.parseEther(price.toString());
-
-        // Check if NFT is already listed
-        const [listedTokens] = await contract.getAllListedNFTs();
-        if (listedTokens.some(t => t.toString() === tokenId.toString())) {
-            throw new Error("This NFT is already listed");
-        }
-
-        // Attempt to list
-        console.log(`Listing NFT #${tokenId} for ${price} ETH`);
-        const tx = await contract.listNFT(tokenId, priceInWei);
-        console.log('Transaction sent:', tx.hash);
-        
-        // Wait for confirmation
-        const receipt = await tx.wait();
-        console.log('Transaction confirmed in block:', receipt.blockNumber);
-        
-        return tx;
-    } catch (error) {
-        console.error('Error listing NFT:', error);
-        
-        // Handle specific error cases
-        if (error.message.includes("user rejected")) {
-            throw new Error("Transaction was rejected");
-        }
-        
-        throw error; // Propagate the error
-    }
-};
-
+// Function to get transaction history
 export const getTransactionHistory = async () => {
-  try {
-      const contract = await getEthereumContract();
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      
-      const listedEvents = await contract.queryFilter(contract.filters.NFTListed());
-      const purchasedEvents = await contract.queryFilter(contract.filters.NFTPurchased());
-      const delistedEvents = await contract.queryFilter(contract.filters.NFTDelisted());
-
-      // Get block timestamps
-      const getBlockTimestamp = async (blockNumber) => {
-          const block = await provider.getBlock(blockNumber);
-          return block.timestamp * 1000; // Convert to milliseconds
-      };
-
-      // Process events with timestamps
-      const processEvents = async (events, type) => {
-          return Promise.all(events.map(async (event) => ({
-              type,
-              tokenId: event.args.tokenId.toString(),
-              price: type !== 'Delisted' ? ethers.formatEther(event.args.price) : null,
-              from: type === 'Purchased' ? event.args.buyer : event.args.owner,
-              timestamp: await getBlockTimestamp(event.blockNumber),
-              transactionHash: event.transactionHash
-          })));
-      };
-
-      // Get all transactions with timestamps
-      const [listedTxs, purchasedTxs, delistedTxs] = await Promise.all([
-          processEvents(listedEvents, 'Listed'),
-          processEvents(purchasedEvents, 'Purchased'),
-          processEvents(delistedEvents, 'Delisted')
-      ]);
-
-      const transactions = [...listedTxs, ...purchasedTxs, ...delistedTxs];
-
-      // Sort by timestamp (newest first)
-      return transactions.sort((a, b) => b.timestamp - a.timestamp);
-  } catch (error) {
-      console.error("Error in getTransactionHistory:", error);
-      return [];
-  }
-};
-
-
-
-export async function mintNFT(tokenURI) {
     try {
         const contract = await getEthereumContract();
-        const tx = await contract.mintNFT(tokenURI);
-        await tx.wait();
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
         
-        // Get the minted token ID from the event
-        const receipt = await tx.wait();
-        const event = receipt.logs[0];
-        const tokenId = event.args[2]; // Transfer event has tokenId as the third argument
-        
-        return tokenId.toString();
+        const listedEvents = await contract.queryFilter(contract.filters.NFTListed());
+        const purchasedEvents = await contract.queryFilter(contract.filters.NFTPurchased());
+        const delistedEvents = await contract.queryFilter(contract.filters.NFTDelisted());
+
+        // Get block timestamps
+        const getBlockTimestamp = async (blockNumber) => {
+            const block = await provider.getBlock(blockNumber);
+            return block.timestamp * 1000; // Convert to milliseconds
+        };
+
+        // Process events with timestamps
+        const processEvents = async (events, type) => {
+            return Promise.all(events.map(async (event) => ({
+                type,
+                tokenId: event.args.tokenId.toString(),
+                price: type !== 'Delisted' ? ethers.utils.formatEther(event.args.price) : null,
+                from: type === 'Purchased' ? event.args.buyer : event.args.owner,
+                timestamp: await getBlockTimestamp(event.blockNumber),
+                transactionHash: event.transactionHash
+            })));
+        };
+
+        // Get all transactions with timestamps
+        const [listedTxs, purchasedTxs, delistedTxs] = await Promise.all([
+            processEvents(listedEvents, 'Listed'),
+            processEvents(purchasedEvents, 'Purchased'),
+            processEvents(delistedEvents, 'Delisted')
+        ]);
+
+        const transactions = [...listedTxs, ...purchasedTxs, ...delistedTxs];
+
+        // Sort by timestamp (newest first)
+        return transactions.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
-        console.error("Error minting NFT:", error);
-        throw error;
+        console.error("Error in getTransactionHistory:", error);
+        return [];
     }
-}
+};
